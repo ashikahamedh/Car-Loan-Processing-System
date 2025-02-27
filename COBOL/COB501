@@ -1,0 +1,264 @@
+       ID DIVISION.
+       PROGRAM-ID. COB501.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT KSFL ASSIGN TO KSDD
+           ORGANIZATION IS INDEXED
+           ACCESS IS RANDOM
+           RECORD KEY IS KS-APPID
+           FILE STATUS IS FS-KSFL.
+       DATA DIVISION.
+       FILE SECTION.
+       FD KSFL.
+       01 KSFL-REC.
+          05 KS-APPID                       PIC 9(10).
+          05 FILLER                         PIC X(01).
+          05 KS-LOANID                      PIC 9(02).
+          05 FILLER                         PIC X(01).
+          05 KS-LTYPE                       PIC X(10).
+          05 FILLER                         PIC X(01).
+          05 KS-LTENURE                     PIC X(02).
+          05 FILLER                         PIC X(01).
+          05 KS-LTENTYPE                    PIC X(05).
+          05 FILLER                         PIC X(01).
+          05 KS-AMTPAID                     PIC 9(10).
+          05 FILLER                         PIC X(01).
+          05 KS-APDATE                      PIC X(10).
+          05 FILLER                         PIC X(01).
+          05 KS-PRODATE                     PIC X(10).
+          05 FILLER                         PIC X(94).
+       WORKING-STORAGE SECTION.
+       01 WS-HELLO                      PIC X(10).
+       01 FS-KSFL                       PIC X(02).
+       01 WS-DATE-TO-CHECK              PIC 9(08) VALUE 20161201.
+       01 WS-CHECK-DATE-DAYS            PIC 9(03).
+       01 WS-TEMP-ELCDATE.
+          05 WS-TEMP-YEAR1                 PIC 9(04).
+          05 WS-TEMP-MONTH1                PIC 9(02).
+          05 WS-TEMP-DAY1                  PIC 9(02).
+       01 WS-MOVE-ELCDATE                  PIC 9(08).
+       01 WS-ELCDATE-DAYS                  PIC 9(03).
+       01 WS-DIFFERENCE                    PIC 9(03).
+       01 WS-N                             PIC 9(02).
+       01 WS-I                             PIC 9(02) EXTERNAL.
+       01 WS-U                             PIC 9(02) EXTERNAL.
+       01 WS-AR-TABLE EXTERNAL.
+          02 WS-ARRAY-LOAN-DATA OCCURS 40 TIMES.
+           05 WS-AR-COL1                     PIC 9(10).
+           05 WS-AR-COL2                     PIC 9(02).
+           05 WS-AR-COL3                     PIC X(10).
+           05 WS-AR-COL4                     PIC X(10).
+       01 WS-F                               PIC 9(02) EXTERNAL.
+       01 WS-SHORT-TABLE EXTERNAL.
+          02 WS-SHORT-LOAN-DATA OCCURS 40 TIMES.
+           05 WS-AR-APPID2                   PIC 9(10).
+           05 WS-AR-LTENURE2                 PIC 9(02).
+           05 WS-AR-ELCDATE2                 PIC X(10).
+           05 WS-AR-LTYPE2                   PIC X(10).
+       01 WS-UPDATE-TABLE EXTERNAL.
+          02 WS-UPDATE-LOAN-TABLE OCCURS 40 TIMES.
+             05 WS-UP-APPID                  PIC 9(10).
+             05 WS-UP-ELCDATE                PIC X(10).
+           EXEC SQL
+             INCLUDE SQLCA
+           END-EXEC.
+           EXEC SQL
+             INCLUDE APPLC
+           END-EXEC.
+           EXEC SQL
+             INCLUDE LOAN
+           END-EXEC.
+           EXEC SQL
+             INCLUDE PAYMENT
+           END-EXEC.
+           EXEC SQL
+             INCLUDE HISTORYY
+           END-EXEC.
+           EXEC SQL
+             DECLARE LOANDATA CURSOR FOR
+             SELECT APPID, LOANID, BALAMT, LTYPE, APLAMT, LAPDATE,
+             ELCDATE, TOTRPAYAMT, LINDICATOR, LTENURE
+             FROM TECN033.LOAN
+           END-EXEC.
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           PERFORM OPEN-PARA.
+           PERFORM PROCESS-PARA.
+           PERFORM CLOSE-PARA.
+           PERFORM CALL-SHORT-SUBPGM-PARA.
+           PERFORM CALL-REPORT-PARA.
+           STOP RUN.
+       OPEN-PARA.
+           OPEN I-O KSFL.
+           EXEC SQL
+              OPEN LOANDATA
+           END-EXEC.
+       PROCESS-PARA.
+           PERFORM UNTIL SQLCODE = 100
+             EXEC SQL
+                FETCH LOANDATA INTO
+                :VH-APPID, :VH-LOANID, :VH-BALAMT, :VH-LTYPE,
+                :VH-APLAMT, :VH-LAPDATE, :VH-ELCDATE,
+                :VH-TOTRPAYAMT, :VH-LINDICATOR, :VH-LTENURE
+             END-EXEC
+           DISPLAY VH-LINDICATOR
+           PERFORM CHECK-PARA
+           END-PERFORM.
+       CHECK-PARA.
+           DISPLAY 'INSIDE CHECK-PARA'.
+           EVALUATE TRUE
+              WHEN VH-LINDICATOR = 'CLOSE'
+                   PERFORM FETCH-APP-DETAILS
+                   PERFORM MOVE-TO-ARRAY-PARA
+                   DISPLAY 'CLOSE'
+              WHEN OTHER
+                   DISPLAY 'OPEN'
+                   PERFORM MOVE-TO-ARRAY-PARA
+           END-EVALUATE.
+       FETCH-APP-DETAILS.
+           MOVE VH-APPID TO HV-APPID.
+           EXEC SQL
+                SELECT APPID, APPNAME, SACCNO, CPHONE
+                INTO :HV-APPID, :HV-APPNAME, :HV-SACCNO, :HV-CPHONE
+                FROM APPLC
+                WHERE APPID = :HV-APPID
+           END-EXEC.
+           DISPLAY HV-APPID '  ' HV-APPNAME '  '
+                   HV-SACCNO '  ' HV-CPHONE.
+           PERFORM MOVE-TO-HISTORY-DB.
+       MOVE-TO-HISTORY-DB.
+           MOVE HV-APPID TO HS-APPID.
+           MOVE HV-APPNAME TO HS-APPNAME.
+           MOVE HV-SACCNO TO HS-SACCNO.
+           MOVE HV-CPHONE TO HS-CPHONE.
+           MOVE VH-LOANID TO HS-LOANID.
+           MOVE VH-LTYPE TO HS-LTYPE.
+           MOVE VH-APLAMT TO HS-APLAMT.
+           MOVE VH-LAPDATE TO HS-LAPDATE.
+           MOVE VH-ELCDATE TO HS-ELCDATE.
+           MOVE VH-TOTRPAYAMT TO HS-TOTRPAYAMT.
+           DISPLAY 'MOVING TO HISTORY DB'.
+           EXEC SQL
+              INSERT INTO HISTORYY VALUES ( :HS-APPID, :HS-APPNAME,
+                     :HS-SACCNO, :HS-CPHONE, :HS-LOANID,
+                     :HS-LTYPE, :HS-APLAMT, :HS-LAPDATE, :HS-ELCDATE,
+                     :HS-TOTRPAYAMT)
+           END-EXEC.
+           DISPLAY 'AFTER INSERTION SQL CODE' SQLCODE.
+           PERFORM DELETE-FROM-DBS.
+           PERFORM DELETE-FROM-KSDS.
+       DELETE-FROM-DBS.
+           DISPLAY 'INSIDE DELETE PARA'.
+           MOVE HV-APPID TO SV-APPID.
+      *---------------UNCOMMENT-------------------
+      *    EXEC SQL
+      *        DELETE FROM LOAN
+      *        WHERE APPID = :VH-APPID
+      *    END-EXEC.
+      *    DISPLAY 'AFTER LOAN DELETE ' SQLCODE.
+      *    EXEC SQL
+      *        DELETE FROM APPLC
+      *        WHERE APPID = :HV-APPID
+      *    END-EXEC.
+      *    DISPLAY 'AFTER APP DELETE ' SQLCODE.
+      *    EXEC SQL
+      *        DELETE FROM PAYMENT
+      *        WHERE APPID = :SV-APPID
+      *    END-EXEC.
+      *-------------------------------------------------
+           DISPLAY 'AFTER PAYMENT DELETE ' SQLCODE.
+      *--------------------------------------------------
+           EVALUATE TRUE
+              WHEN SQLCODE = 100
+                 MOVE 00 TO SQLCODE
+              WHEN OTHER
+                 CONTINUE
+           END-EVALUATE.
+       DELETE-FROM-KSDS.
+           DISPLAY 'DELETE FROM KSDS'.
+      *------------UNCOMMENT-----------------------------
+      *    MOVE VH-APPID TO KS-APPID.
+      *    READ KSFL KEY IS KS-APPID
+      *       INVALID KEY
+      *         DISPLAY 'NOT FOUND IN KSDS'
+      *       NOT INVALID KEY
+      *         DISPLAY 'FOUND IN KSDS AND DELETED'
+      *         DELETE KSFL
+      *            EVALUATE TRUE
+      *               WHEN FS-KSFL = '00'
+      *               DISPLAY 'FOUND IN KSDS AND DELETED'
+      *               WHEN OTHER
+      *               DISPLAY 'NOT FOUND ' FS-KSFL
+      *            END-EVALUATE
+      *    END-READ.
+      *--------------------------------------------------
+       MOVE-TO-ARRAY-PARA.
+      *    DISPLAY VH-APPID '  ' VH-APPID '  ' VH-LTYPE '  '
+      *            VH-ELCDATE.
+           MOVE VH-ELCDATE(1:2) TO WS-TEMP-DAY1.
+           MOVE VH-ELCDATE(4:2) TO WS-TEMP-MONTH1.
+           MOVE VH-ELCDATE(7:4) TO WS-TEMP-YEAR1.
+           MOVE WS-TEMP-ELCDATE TO WS-MOVE-ELCDATE.
+           COMPUTE WS-ELCDATE-DAYS =
+                   FUNCTION INTEGER-OF-DATE(WS-MOVE-ELCDATE).
+           COMPUTE WS-CHECK-DATE-DAYS =
+                   FUNCTION INTEGER-OF-DATE(WS-DATE-TO-CHECK).
+           COMPUTE WS-DIFFERENCE =
+                   WS-CHECK-DATE-DAYS - WS-ELCDATE-DAYS.
+           DISPLAY 'ELCDATE ' WS-MOVE-ELCDATE.
+           DISPLAY 'OG DATE ' WS-DATE-TO-CHECK.
+           DISPLAY 'ELCDATE DAYS ' WS-ELCDATE-DAYS.
+           DISPLAY 'OG DATE DAYS ' WS-CHECK-DATE-DAYS.
+           INITIALIZE WS-I.
+           EVALUATE TRUE
+                WHEN VH-LTENURE <= 05 AND
+                WS-ELCDATE-DAYS > WS-CHECK-DATE-DAYS
+                     DISPLAY 'SHORT LOAN TENURE ' VH-LTENURE
+                     ADD 1 TO WS-I
+                     ADD 1 TO WS-F
+                     DISPLAY WS-I
+                     MOVE VH-APPID TO WS-AR-COL1(WS-I)
+                     MOVE VH-LOANID TO WS-AR-COL2(WS-I)
+                     MOVE VH-LTYPE TO WS-AR-COL3(WS-I)
+                     MOVE VH-ELCDATE TO WS-AR-COL4(WS-I)
+                     MOVE VH-APPID TO WS-AR-APPID2(WS-F)
+                     MOVE VH-LTENURE TO WS-AR-LTENURE2(WS-F)
+                     MOVE VH-ELCDATE TO WS-AR-ELCDATE2(WS-F)
+                     MOVE VH-LTYPE TO WS-AR-LTYPE2(WS-F)
+                     DISPLAY WS-ARRAY-LOAN-DATA(WS-I)
+                WHEN OTHER
+                     DISPLAY 'NO SHORT TENURE'
+                     ADD 1 TO WS-F
+                     MOVE VH-APPID TO WS-AR-APPID2(WS-F)
+                     MOVE VH-LTENURE TO WS-AR-LTENURE2(WS-F)
+                     MOVE VH-ELCDATE TO WS-AR-ELCDATE2(WS-F)
+                     MOVE VH-LTYPE TO WS-AR-LTYPE2(WS-F)
+           END-EVALUATE.
+       CLOSE-PARA.
+           CLOSE KSFL.
+           EXEC SQL
+              CLOSE LOANDATA
+           END-EXEC.
+       CALL-SHORT-SUBPGM-PARA.
+           DISPLAY 'CALLING SHORT SUB'.
+           CALL 'SHORTSUB'.
+           PERFORM UPDATE-LOAN-TABLE-PARA.
+       UPDATE-LOAN-TABLE-PARA.
+           DISPLAY 'INSIDE UPDATE LOAN TABLE PARA'.
+           PERFORM UNTIL WS-N > ( WS-U - 2 )
+                 ADD 1 TO WS-N
+                 DISPLAY WS-UPDATE-LOAN-TABLE(WS-N) ' DATA '
+                 MOVE WS-UP-APPID(WS-N) TO VH-APPID
+                 MOVE WS-UP-ELCDATE(WS-N) TO VH-ELCDATE
+      *------------------UNCOMMENT---------------------------
+      *          EXEC SQL
+      *              UPDATE LOAN SET ELCDATE = :VH-ELCDATE
+      *              WHERE APPID = :VH-APPID
+      *          END-EXEC
+      *------------------------------------------------------
+           END-PERFORM.
+       CALL-REPORT-PARA.
+           DISPLAY 'CALLING REPORT PARA'.
+           CALL 'REPSUB5'.
+

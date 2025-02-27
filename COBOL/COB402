@@ -1,0 +1,133 @@
+       ID DIVISION.
+       PROGRAM-ID. COB402.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-X                             PIC 9(02) EXTERNAL.
+       01 WS-U                             PIC 9(02) EXTERNAL.
+       01 WS-TABLE EXTERNAL.
+          02 WS-ARRAY-LOAN OCCURS 50 TIMES.
+             05 WS-ARR-APDD                     PIC 9(10).
+             05 WS-ARR-APPID                    PIC 9(10).
+             05 WS-ARR-NEXTRPAYDD               PIC 9(10).
+             05 WS-ARR-MONRAMT                  PIC 9(10).
+             05 WS-ARR-CURBALAMT                PIC 9(10).
+       01 WS-TEMP-CURBALAMT                     PIC 9(10) EXTERNAL.
+       01 WS-J                                  PIC 9(02).
+       01 WS-TABLE2 EXTERNAL.
+          02 WS-ARRAY-CURBAL OCCURS 50 TIMES.
+             05 WS-ARR-APPID1                   PIC X(10).
+             05 WS-ARR-BALAMT1                  PIC 9(10).
+       01  WS-CURRENT-DATE-FIELDS.
+           05  WS-CURRENT-DATE.
+               10  WS-CURRENT-YEAR    PIC  9(4).
+               10  WS-CURRENT-MONTH   PIC  9(2).
+               10  WS-CURRENT-DAY     PIC  9(2).
+           05  WS-CURRENT-TIME.
+               10  WS-CURRENT-HOUR    PIC  9(2).
+               10  WS-CURRENT-MINUTE  PIC  9(2).
+               10  WS-CURRENT-SECOND  PIC  9(2).
+               10  WS-CURRENT-MS      PIC  9(2).
+           05  WS-DIFF-FROM-GMT       PIC S9(4).
+       01 WS-TEMP-CURYDD.
+          05 WS-TEMP-YEAR1                 PIC 9(04).
+          05 WS-TEMP-MONTH1                PIC 9(02).
+          05 WS-TEMP-DAY1                  PIC 9(02).
+       01 WS-MOVE-CURDATE                   PIC 9(08).
+       01 WS-CUR-DAYS                       PIC 9(03).
+       01 WS-DIFFERENCE                     PIC 9(03).
+       PROCEDURE DIVISION.
+       0000-MAIN-PARA.
+           PERFORM 1000-PROCESS-PARA THRU
+                   1000-PROCESS-PARA-EXIT.
+           PERFORM 9000-TERMINATION-PARA THRU
+                   9000-TERMINATION-PARA-EXIT.
+           GOBACK.
+       1000-PROCESS-PARA.
+           DISPLAY 'INSIDE SUBPROGRAM PROCESS PARA'.
+           PERFORM UNTIL WS-J > ( WS-U - 1 )
+              ADD 1 TO WS-J
+              ADD 1 TO WS-X
+              DISPLAY WS-ARR-NEXTRPAYDD(WS-J)
+              DISPLAY WS-ARR-APDD(WS-J)
+              EVALUATE TRUE
+                  WHEN WS-ARR-NEXTRPAYDD(WS-J) > WS-ARR-APDD(WS-J)
+                       DISPLAY 'LESS THEN'
+                       PERFORM 1100-CALCULATE-PARA THRU
+                               1100-CALCULATE-PARA-EXIT
+                  WHEN OTHER
+                       DISPLAY 'NOT LESS THEN'
+                       CONTINUE
+              END-EVALUATE
+           END-PERFORM.
+       1000-PROCESS-PARA-EXIT.
+           EXIT.
+       1100-CALCULATE-PARA.
+           MOVE FUNCTION CURRENT-DATE TO WS-CURRENT-DATE-FIELDS.
+           DISPLAY 'INSIDE CALCUALTE PARA'.
+           MOVE WS-CURRENT-YEAR TO WS-TEMP-YEAR1
+           MOVE WS-CURRENT-MONTH TO WS-TEMP-MONTH1
+           MOVE WS-CURRENT-DAY TO WS-TEMP-DAY1
+           MOVE WS-TEMP-CURYDD TO WS-MOVE-CURDATE.
+           COMPUTE WS-CUR-DAYS =
+                   FUNCTION INTEGER-OF-DATE(WS-MOVE-CURDATE).
+           DISPLAY WS-CUR-DAYS ' CURRENT DAYS'.
+           DISPLAY WS-TEMP-CURYDD ' CURRENT DATE'.
+           COMPUTE WS-DIFFERENCE =
+           WS-CUR-DAYS - WS-ARR-NEXTRPAYDD(WS-J).
+           EVALUATE TRUE
+               WHEN WS-DIFFERENCE <= 005
+                    DISPLAY 'LESS THEN EQUALS 05'
+                    PERFORM 1110-CALC1-PARA THRU
+                            1110-CALC1-PARA-EXIT
+               WHEN WS-DIFFERENCE > 007 AND <010
+                    DISPLAY 'GREATER THEN 07 AND LESS THEN 10'
+                    PERFORM 1120-CALC2-PARA THRU
+                            1120-CALC2-PARA-EXIT
+               WHEN WS-DIFFERENCE > 010
+                    DISPLAY 'GREATER THEN 10'
+                    PERFORM 1130-CALC3-PARA THRU
+                            1130-CALC3-PARA-EXIT
+           END-EVALUATE.
+       1100-CALCULATE-PARA-EXIT.
+           EXIT.
+       1110-CALC1-PARA.
+           MOVE 00 TO WS-TEMP-CURBALAMT.
+           DISPLAY 'CALC1 PARA'.
+           DISPLAY 'CURBALAMT BEFORE ' WS-ARR-CURBALAMT(WS-J).
+           DISPLAY 'MONTHLY AMT ' WS-ARR-MONRAMT(WS-J).
+           COMPUTE WS-TEMP-CURBALAMT =
+           WS-ARR-CURBALAMT(WS-J) - ( WS-ARR-MONRAMT(WS-J) * 0.055 ).
+           DISPLAY 'CURBALAMT AFTER ' WS-TEMP-CURBALAMT.
+           MOVE WS-ARR-APPID(WS-J) TO WS-ARR-APPID1(WS-X).
+           MOVE WS-TEMP-CURBALAMT TO WS-ARR-BALAMT1(WS-X).
+       1110-CALC1-PARA-EXIT.
+           EXIT.
+       1120-CALC2-PARA.
+           MOVE 00 TO WS-TEMP-CURBALAMT.
+           DISPLAY 'CALC2 PARA'.
+           DISPLAY 'CURBALAMT BEFORE ' WS-ARR-CURBALAMT(WS-J).
+           DISPLAY 'MONTHLY AMT ' WS-ARR-MONRAMT(WS-J).
+           COMPUTE WS-TEMP-CURBALAMT =
+           WS-ARR-CURBALAMT(WS-J) - ( WS-ARR-MONRAMT(WS-J) * 0.075 ).
+           DISPLAY 'CURBALAMT AFTER ' WS-TEMP-CURBALAMT.
+           MOVE WS-ARR-APPID(WS-J) TO WS-ARR-APPID1(WS-X).
+           MOVE WS-TEMP-CURBALAMT TO WS-ARR-BALAMT1(WS-X).
+       1120-CALC2-PARA-EXIT.
+           EXIT.
+       1130-CALC3-PARA.
+           MOVE 00 TO WS-TEMP-CURBALAMT.
+           DISPLAY 'CALC3 PARA'.
+           DISPLAY 'CURBALAMT BEFORE ' WS-ARR-CURBALAMT(WS-J).
+           DISPLAY 'MONTHLY AMT ' WS-ARR-MONRAMT(WS-J).
+           COMPUTE WS-TEMP-CURBALAMT =
+           WS-ARR-CURBALAMT(WS-J) - ( WS-ARR-MONRAMT(WS-J) * 0.0925 ).
+           DISPLAY 'CURBALAMT AFTER ' WS-TEMP-CURBALAMT.
+           MOVE WS-ARR-APPID(WS-J) TO WS-ARR-APPID1(WS-X).
+           MOVE WS-TEMP-CURBALAMT TO WS-ARR-BALAMT1(WS-X).
+       1130-CALC3-PARA-EXIT.
+           EXIT.
+       9000-TERMINATION-PARA.
+           GOBACK.
+       9000-TERMINATION-PARA-EXIT.
+           EXIT.
+

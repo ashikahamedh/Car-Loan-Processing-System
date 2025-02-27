@@ -1,0 +1,43 @@
+       ID DIVISION.
+       PROGRAM-ID. COB000.
+       ENVIRONMENT DIVISION.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-HELLO                        PIC X(10).
+           EXEC SQL
+              INCLUDE SQLCA
+           END-EXEC.
+           EXEC SQL
+              INCLUDE APPLC
+           END-EXEC.
+           EXEC SQL
+              INCLUDE LOAN
+           END-EXEC.
+           EXEC SQL
+              INCLUDE PAYMENT
+           END-EXEC.
+           EXEC SQL
+              INCLUDE HISTORYY
+           END-EXEC.
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           PERFORM DELETE-PARA.
+           STOP RUN.
+       DELETE-PARA.
+           EXEC SQL
+              DELETE FROM LOAN
+           END-EXEC.
+           DISPLAY 'AFTER DELETE FROM DELETE ' SQLCODE.
+           EXEC SQL
+              DELETE FROM  APPLC
+           END-EXEC.
+           DISPLAY 'AFTER DELETE FROM APP ' SQLCODE.
+           EXEC SQL
+              DELETE FROM PAYMENT
+           END-EXEC.
+           DISPLAY 'AFTER DELETE FROM PAYMANET ' SQLCODE.
+           EXEC SQL
+              DELETE FROM HISTORYY
+           END-EXEC.
+           DISPLAY 'AFTER DELETE FROM HISTORY ' SQLCODE.
+
