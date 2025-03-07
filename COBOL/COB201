@@ -164,13 +164,11 @@
            MOVE IN-COLL TO SV-COLLECTION.
            MOVE IN-PAY-MODE TO SV-PAYMODE.
            MOVE IN-CHEQ-DET TO SV-CHQDET.
-           DISPLAY 'HELP ME'.
            EXEC SQL
                INSERT INTO PAYMENT VALUES(:SV-APPID, :SV-LOANID,
                :SV-AMTPAID, :SV-APDATE, :SV-PREBALAMT, :SV-CURBALAMT,
                :SV-COLLECTION, :SV-PAYMODE, :SV-CHQDET)
            END-EXEC.
-           DISPLAY 'HELP HELP'.
       *---------------CHANGES-----------------
            PERFORM VSAM-PARA.
        VSAM-PARA.

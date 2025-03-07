@@ -1,16 +1,36 @@
        ID DIVISION.
-       PROGRAM-ID. COB401.
+       PROGRAM-ID. COBRD4.
        ENVIRONMENT DIVISION.
        INPUT-OUTPUT SECTION.
        FILE-CONTROL.
               SELECT RPFL ASSIGN TO BRD4RP
               ORGANIZATION IS SEQUENTIAL
               ACCESS IS SEQUENTIAL
-              FILE STATUS IS FS-RPFL.
+              FILE STATUS IS FS-RPFL
+              .
+              SELECT STFL ASSIGN TO SORTRP4
+              ORGANIZATION IS SEQUENTIAL
+              ACCESS IS SEQUENTIAL
+              FILE STATUS IS FS-STFL
+              .
        DATA DIVISION.
        FILE SECTION.
        FD RPFL.
        01 RPFL-REC                         PIC X(320).
+       FD STFL.
+       01 STFL-REC.
+          05 ST-APPID                      PIC 9(10).
+          05 FILLER                        PIC X(01).
+          05 ST-LOANID                     PIC 9(02).
+          05 FILLER                        PIC X(01).
+          05 ST-LTYPE                      PIC X(10).
+          05 FILLER                        PIC X(01).
+          05 ST-NEXTRPAYDD                 PIC X(10).
+          05 FILLER                        PIC X(01).
+          05 ST-MONRAMT                    PIC 9(10).
+          05 FILLER                        PIC X(01).
+          05 ST-BALAMT                     PIC 9(10).
+          05 FILLER                        PIC X(263).
        WORKING-STORAGE SECTION.
        01 WS-U                             PIC 9(02) EXTERNAL.
        01 WS-X                             PIC 9(02) EXTERNAL.
@@ -51,8 +71,10 @@
        01 WS-TEMP-LOANID                   PIC 9(02).
        01 WS-TEMP-MONRAMT                  PIC 9(10).
        01 WS-TEMP-BALAMT                   PIC 9(10).
-       01 WS-DELIMIT-SPACES           PIC X(02) VALUE ALL SPACES.
+       01 WS-DELIMIT-SPACES                PIC X(02) VALUE ALL SPACES.
        01 FS-RPFL                          PIC X(02).
+       01 FS-STFL                          PIC X(02).
+
            EXEC SQL INCLUDE SQLCA END-EXEC.
            EXEC SQL INCLUDE APPLC END-EXEC.
            EXEC SQL INCLUDE LOAN END-EXEC.
@@ -89,22 +111,38 @@
            EXIT
            .
        1000-INITIALIZE-PARA.
-           INITIALIZE FILE-STATUS.
+           INITIALIZE FILE-STATUS
+           .
        1000-INITIALIZE-PARA-EXIT.
            EXIT
            .
        2000-OPEN-PARA.
+           DISPLAY 'I AM IN OPEN PARA'
            OPEN OUTPUT RPFL.
-           DISPLAY 'OPEN CSV FILE ' FS-RPFL.
-           DISPLAY 'I AM IN OPEN PARA'.
+           EVALUATE TRUE
+              WHEN FS-RPFL = '00'
+              DISPLAY 'REPORT FILE OPEN SUCCESS'
+              WHEN OTHER
+              DISPLAY ' REPORT FILE OPEN FAILURE' FS-RPFL
+              PERFORM 9000-TERM-PARA THRU
+              9000-TERM-PARA-EXIT
+           END-EVALUATE
+           OPEN OUTPUT STFL
+           EVALUATE TRUE
+              WHEN FS-STFL = '00'
+              DISPLAY 'SORT FILE OPEN SUCCESS'
+              WHEN OTHER
+              DISPLAY ' SORT FILE OPEN FAILURE' FS-STFL
+              PERFORM 9000-TERM-PARA THRU
+              9000-TERM-PARA-EXIT
+           END-EVALUATE
+      *    DISPLAY 'OPEN CSV FILE ' FS-RPFL
            EXEC SQL
                OPEN EMPCUR
            END-EXEC.
-           EXEC SQL
-               OPEN PAYCUR
-           END-EXEC.
        2000-OPEN-PARA-EXIT.
-           EXIT.
+           EXIT
+           .
        3000-PROCESS-PARA.
            DISPLAY 'I AM IN PROCESS PARA'
            PERFORM UNTIL SQLCODE = 100
@@ -121,37 +159,41 @@
            END-EXEC
            PERFORM 3100-COMP-PARA THRU 3100-COMP-PARA-EXIT
            END-PERFORM.
+           .
        3000-PROCESS-PARA-EXIT.
-           EXIT.
+           EXIT
+           .
        3100-COMP-PARA.
-      *    DISPLAY VH-LOANID ' LOANID '.
-           DISPLAY 'INSIDE COMP-PARA'.
-      *    DISPLAY 'AMOUNT PAID' SV-APDATE.
-      *    DISPLAY 'NEXT REPAYMENT DATE' VH-NEXTRPAYDD.
-      *    DISPLAY SV-APDATE(1:2) ' DAY '.
-           MOVE SV-APDATE(1:2) TO WS-TEMP-DAY.
-           MOVE SV-APDATE(4:2) TO WS-TEMP-MONTH.
-           MOVE SV-APDATE(7:4) TO WS-TEMP-YEAR.
-      *    DISPLAY WS-TEMP-APDATE ' AMP DATE '.
-           MOVE VH-NEXTRPAYDD(1:2) TO WS-TEMP-DAY1.
-           MOVE VH-NEXTRPAYDD(4:2) TO WS-TEMP-MONTH1.
-           MOVE VH-NEXTRPAYDD(7:4) TO WS-TEMP-YEAR1.
-      *    DISPLAY WS-TEMP-RPAYDD ' RAPY DATE '.
-           MOVE WS-TEMP-RPAYDD TO WS-MOVE-RPAYDD.
-           MOVE WS-TEMP-APDATE TO WS-MOVE-APDATE.
-      *    DISPLAY WS-MOVE-RPAYDD ' MOVE RPAYDD '.
-      *    DISPLAY WS-MOVE-APDATE ' MOVE APDATE '.
+      *    DISPLAY VH-LOANID ' LOANID '
+           DISPLAY 'INSIDE COMP-PARA'
+      *    DISPLAY 'AMOUNT PAID' SV-APDATE
+      *    DISPLAY 'NEXT REPAYMENT DATE' VH-NEXTRPAYDD
+      *    DISPLAY SV-APDATE(1:2) ' DAY '
+           MOVE SV-APDATE(1:2) TO WS-TEMP-DAY
+           MOVE SV-APDATE(4:2) TO WS-TEMP-MONTH
+           MOVE SV-APDATE(7:4) TO WS-TEMP-YEAR
+      *    DISPLAY WS-TEMP-APDATE ' AMP DATE '
+           MOVE VH-NEXTRPAYDD(1:2) TO WS-TEMP-DAY1
+           MOVE VH-NEXTRPAYDD(4:2) TO WS-TEMP-MONTH1
+           MOVE VH-NEXTRPAYDD(7:4) TO WS-TEMP-YEAR1
+      *    DISPLAY WS-TEMP-RPAYDD ' RAPY DATE '
+           MOVE WS-TEMP-RPAYDD TO WS-MOVE-RPAYDD
+           MOVE WS-TEMP-APDATE TO WS-MOVE-APDATE
+      *    DISPLAY WS-MOVE-RPAYDD ' MOVE RPAYDD '
+      *    DISPLAY WS-MOVE-APDATE ' MOVE APDATE '
            COMPUTE WS-AMP-DAYS =
-                   FUNCTION INTEGER-OF-DATE(WS-MOVE-APDATE).
+                   FUNCTION INTEGER-OF-DATE(WS-MOVE-APDATE)
            COMPUTE WS-RPAY-DAYS =
-                   FUNCTION INTEGER-OF-DATE(WS-MOVE-RPAYDD).
-      *    DISPLAY WS-AMP-DAYS ' AMP DAY '.
-      *    DISPLAY WS-RPAY-DAYS ' RPAY DAYS '.
-           COMPUTE WS-DAYS-DIFFERENCE = WS-RPAY-DAYS - WS-AMP-DAYS.
-      *    DISPLAY WS-DAYS-DIFFERENCE ' DIFFERENCE '.
-           PERFORM 3200-CHECK-PARA THRU 3200-CHECK-PARA-EXIT.
+                   FUNCTION INTEGER-OF-DATE(WS-MOVE-RPAYDD)
+      *    DISPLAY WS-AMP-DAYS ' AMP DAY '
+      *    DISPLAY WS-RPAY-DAYS ' RPAY DAYS '
+           COMPUTE WS-DAYS-DIFFERENCE = WS-RPAY-DAYS - WS-AMP-DAYS
+      *    DISPLAY WS-DAYS-DIFFERENCE ' DIFFERENCE '
+           PERFORM 3200-CHECK-PARA THRU 3200-CHECK-PARA-EXIT
+           .
        3100-COMP-PARA-EXIT.
-           EXIT.
+           EXIT
+           .
        3200-CHECK-PARA.
            EVALUATE TRUE
               WHEN WS-DAYS-DIFFERENCE >= 30
@@ -159,18 +201,20 @@
                  PERFORM 3300-MOVE-TO-REPORT-PARA THRU
                          3300-MOVE-TO-REPORT-PARA-EXIT
               WHEN OTHER
-      *          DISPLAY 'GREATER THEN 30'
+      *          DISPLAY 'LESS THAN 30'
                  CONTINUE
-           END-EVALUATE.
+           END-EVALUATE
+           .
        3200-CHECK-PARA-EXIT.
-           EXIT.
+           EXIT
+           .
        3300-MOVE-TO-REPORT-PARA.
-      *    DISPLAY 'IN MOVE TO REPORT PARA'.
-           MOVE VH-APPID TO WS-TEMP-APPID.
-           MOVE VH-LOANID TO WS-TEMP-LOANID.
-           MOVE VH-BALAMT TO WS-TEMP-BALAMT.
-           MOVE VH-MONRAMT TO WS-TEMP-MONRAMT.
-           MOVE SPACES TO RPFL-REC.
+      *    DISPLAY 'IN MOVE TO REPORT PARA'
+           MOVE VH-APPID TO WS-TEMP-APPID
+           MOVE VH-LOANID TO WS-TEMP-LOANID
+           MOVE VH-BALAMT TO WS-TEMP-BALAMT
+           MOVE VH-MONRAMT TO WS-TEMP-MONRAMT
+           MOVE SPACES TO RPFL-REC
            STRING '10' DELIMITED BY SIZE
                   ',' DELIMITED BY SIZE
                   WS-TEMP-APPID DELIMITED BY SIZE
@@ -185,42 +229,68 @@
                   ',' DELIMITED BY SIZE
                   WS-TEMP-BALAMT DELIMITED BY SIZE
                   INTO RPFL-REC
-            END-STRING.
-            WRITE RPFL-REC.
-            DISPLAY 'I AM A PARA'.
-            PERFORM 3400-MOVE-TO-ARRAY-PARA THRU
-            3400-MOVE-TO-ARRAY-PARA-EXIT.
+           END-STRING
+           WRITE RPFL-REC
+           PERFORM 3900-MOVE-SORT-PARA THRU
+           3900-MOVE-SORT-PARA-EXIT
+           PERFORM 3400-MOVE-TO-ARRAY-PARA THRU
+           3400-MOVE-TO-ARRAY-PARA-EXIT
+           .
        3300-MOVE-TO-REPORT-PARA-EXIT.
-            EXIT.
+           EXIT
+           .
        3400-MOVE-TO-ARRAY-PARA.
-            ADD 1 TO WS-U.
-            MOVE VH-APPID TO WS-ARR-APPID(WS-U).
-            MOVE WS-RPAY-DAYS TO WS-ARR-NEXTRPAYDD(WS-U).
-            MOVE VH-MONRAMT TO WS-ARR-MONRAMT(WS-U).
-            MOVE WS-AMP-DAYS TO WS-ARR-APDD(WS-U).
-            MOVE SV-CURBALAMT TO WS-ARR-CURBALAMT(WS-U).
-            DISPLAY WS-ARRAY-LOAN(WS-U).
-            DISPLAY WS-U.
+           ADD 1 TO WS-U
+           MOVE VH-APPID TO WS-ARR-APPID(WS-U)
+           MOVE WS-RPAY-DAYS TO WS-ARR-NEXTRPAYDD(WS-U)
+           MOVE VH-MONRAMT TO WS-ARR-MONRAMT(WS-U)
+           MOVE WS-AMP-DAYS TO WS-ARR-APDD(WS-U)
+           MOVE SV-CURBALAMT TO WS-ARR-CURBALAMT(WS-U)
+      *    DISPLAY WS-ARRAY-LOAN(WS-U)
+      *    DISPLAY WS-U
+           .
        3400-MOVE-TO-ARRAY-PARA-EXIT.
-            EXIT.
+           EXIT
+           .
+       3900-MOVE-SORT-PARA.
+           MOVE WS-TEMP-APPID TO ST-APPID
+           MOVE WS-TEMP-LOANID TO ST-LOANID
+           MOVE VH-LTYPE TO ST-LTYPE
+           MOVE VH-NEXTRPAYDD TO ST-NEXTRPAYDD
+           MOVE WS-TEMP-MONRAMT TO ST-MONRAMT
+           MOVE WS-TEMP-BALAMT TO ST-BALAMT
+           WRITE STFL-REC
+           DISPLAY 'FILE STATUS AFTER SORT REPORT ' FS-STFL
+           .
+       3900-MOVE-SORT-PARA-EXIT.
+           EXIT
+           .
        4000-CLOSE-PARA.
-           CLOSE RPFL.
            DISPLAY 'I AM IN CLOSE PARA'
+           CLOSE RPFL
+           CLOSE STFL
            EXEC SQL
                CLOSE EMPCUR
+           END-EXEC
+           EXEC SQL
+               OPEN PAYCUR
            END-EXEC.
+           .
        4000-CLOSE-PARA-EXIT.
-           EXIT.
+           EXIT
+           .
        5000-SUBPROGRAM-PARA.
-           DISPLAY 'INSIDE SUBPROGRAM PARA'.
-           CALL 'COB402'.
+           DISPLAY 'INSIDE SUBPROGRAM PARA'
+           CALL 'COB402'
            PERFORM 5100-UPDATE-DB2-PARA THRU
-                   5100-UPDATE-DB2-PARA-EXIT.
+                   5100-UPDATE-DB2-PARA-EXIT
+           .
        5000-SUBPROGRAM-PARA-EXIT.
-           EXIT.
+           EXIT
+           .
        5100-UPDATE-DB2-PARA.
-           DISPLAY 'INSIDE DATABASE UPDATE PARA'.
-           DISPLAY WS-X.
+           DISPLAY 'INSIDE DATABASE UPDATE PARA'
+           DISPLAY WS-X
            PERFORM UNTIL WS-Y > ( WS-X - 1 )
               ADD 1 TO WS-Y
               DISPLAY 'VALUE ' WS-ARRAY-CURBAL(WS-Y)
@@ -235,11 +305,13 @@
       *          UPDATE LOAN SET BALAMT = :VH-BALAMT
       *          WHERE APPID = :VH-APPID
       *       END-EXEC
-           END-PERFORM.
+           END-PERFORM
+           .
        5100-UPDATE-DB2-PARA-EXIT.
-           EXIT.
+           EXIT
+           .
        3200-MOVE-REPORT-PARA.
-           MOVE 00 TO SQLCODE.
+           MOVE 00 TO SQLCODE
            PERFORM UNTIL SQLCODE = 100
            EXEC SQL
                FETCH PAYCUR INTO
@@ -249,7 +321,7 @@
            DISPLAY '-------------------INSIDE REPORT PARA--------'
            DISPLAY SV-CURBALAMT
            EVALUATE TRUE
-              WHEN SV-CURBALAMT < 0000030000
+              WHEN SV-CURBALAMT < 30000
                  ADD 1 TO WS-I
                  DISPLAY WS-I
                  MOVE SV-APPID TO WS-AR-COL1(WS-I)
@@ -260,16 +332,24 @@
               WHEN OTHER
                  CONTINUE
            END-EVALUATE
-           END-PERFORM.
+           END-PERFORM
+           .
        3200-MOVE-REPORT-PARA-EXIT.
-           EXIT.
+           EXIT
+           .
        6000-CALL-REPORT-PARA.
-           DISPLAY 'CALLING SUBPROGRAM FOR REPORT'.
-           CALL 'REPSUB4'.
+           DISPLAY 'CALLING SUBPROGRAM FOR REPORT'
+           CALL 'REPSUB4'
+           EXEC SQL
+               CLOSE PAYMENT
+           END-EXEC
+           .
        6000-CALL-REPORT-PARA-EXIT.
-           EXIT.
+           EXIT
+           .
        9000-TERM-PARA.
-           STOP RUN.
+           STOP RUN
+           .
        9000-TERM-PARA-EXIT.
            EXIT
            .

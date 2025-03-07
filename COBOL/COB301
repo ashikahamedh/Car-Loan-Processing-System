@@ -370,7 +370,7 @@
        BALANCE-UPDATE-PARA.
            MOVE SV-CURBALAMT TO VH-BALAMT.
            MOVE VH-LOANID TO SV-LOANID.
-      *-----------UN COMMENT WHEN NEEDED--------------
+      *-----------UNCOMMENT WHEN NEEDED--------------
       *    EXEC SQL
       *       UPDATE LOAN SET BALAMT = :VH-BALAMT
       *       WHERE LOANID = :VH-LOANID
@@ -385,8 +385,9 @@
        MOVE-REPORT-PARA.
            DISPLAY 'INSIDE FINAL REPORT PARA'.
            DISPLAY 'SV-AMTPAID ' SV-AMTPAID.
+           DISPLAY 'VH-MONRAMT ' VH-MONRAMT.
            EVALUATE TRUE
-             WHEN VH-MONRAMT >= 5000 AND <=10000
+             WHEN VH-MONRAMT <= 2000
                ADD 1 TO WS-I
                MOVE VH-APPID TO WS-AR-COL1(WS-I)
                MOVE VH-LOANID TO WS-AR-COL2(WS-I)

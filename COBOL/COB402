@@ -27,7 +27,6 @@
                10  WS-CURRENT-MINUTE  PIC  9(2).
                10  WS-CURRENT-SECOND  PIC  9(2).
                10  WS-CURRENT-MS      PIC  9(2).
-           05  WS-DIFF-FROM-GMT       PIC S9(4).
        01 WS-TEMP-CURYDD.
           05 WS-TEMP-YEAR1                 PIC 9(04).
           05 WS-TEMP-MONTH1                PIC 9(02).
@@ -79,7 +78,7 @@
                     DISPLAY 'LESS THEN EQUALS 05'
                     PERFORM 1110-CALC1-PARA THRU
                             1110-CALC1-PARA-EXIT
-               WHEN WS-DIFFERENCE > 007 AND <010
+               WHEN WS-DIFFERENCE > 007 AND < 010
                     DISPLAY 'GREATER THEN 07 AND LESS THEN 10'
                     PERFORM 1120-CALC2-PARA THRU
                             1120-CALC2-PARA-EXIT
