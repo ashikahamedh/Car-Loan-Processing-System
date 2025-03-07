@@ -1,0 +1,186 @@
+       ID DIVISION.
+       PROGRAM-ID. REPSUB4.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT RP1FL ASSIGN TO RP4DD
+           ORGANIZATION IS SEQUENTIAL
+           ACCESS IS SEQUENTIAL
+           FILE STATUS FS-RP1FL.
+       DATA DIVISION.
+       FILE SECTION.
+       FD RP1FL.
+       01 RP1FL-REC.
+          05 RP-APP-ID                     PIC 9(10).
+          05 FILLER                        PIC X(05).
+          05 RP-LOAN-ID                    PIC 9(02).
+          05 FILLER                        PIC X(08).
+          05 RP-LOAN-TENURE                PIC X(10).
+          05 FILLER                        PIC X(05).
+          05 RP-LOAN-TYPE                  PIC X(10).
+          05 FILLER                        PIC X(30).
+       WORKING-STORAGE SECTION.
+       01 WS-HEADER1.
+          05 FILLER                        PIC X(20).
+          05 WS-HEAD                       PIC X(20)
+             VALUE 'LOAN DETAIL REPORT'.
+          05 FILLER                        PIC X(40).
+       01 WS-HEADER2.
+          05 WS-HEAD2-DATE1                PIC X(05) VALUE 'DATE:'.
+          05 WS-HEAD2-DATE.
+             10 WS-CURRENT-YEAR            PIC 9(04).
+             10 WS-HEAD2-SLASH             PIC X(01) VALUE '-'.
+             10 WS-CURRENT-MONTH           PIC 9(02).
+             10 WS-HEAD2-SLASH             PIC X(01) VALUE '-'.
+             10 WS-CURRENT-DAY             PIC 9(02).
+          05 FILLER                        PIC X(35).
+          05 WS-HEAD2-PAGE1                PIC X(05) VALUE 'PAGE:'.
+          05 WS-HEAD2-PAGE                 PIC 9(01) VALUE 1.
+          05 FILLER                        PIC X(24).
+       01 WS-HEADER3.
+          05 WS-HEAD3-TIME1                PIC X(05) VALUE 'TIME:'.
+          05 WS-HEAD3-TIME.
+             10 WS-CURRENT-HOUR            PIC 9(02).
+             10 WS-HEAD3-COLON             PIC X(01) VALUE ':'.
+             10 WS-CURRENT-MINUTE          PIC 9(02).
+             10 WS-HEAD3-COLON             PIC X(01) VALUE ':'.
+             10 WS-CURRENT-SECOND          PIC 9(02).
+          05 FILLER                        PIC X(37).
+          05 WS-HEAD3-REPORT1              PIC X(10)
+                                           VALUE 'REPORT ID:'.
+          05 WS-HEAD3-REPORT               PIC 9(04) VALUE 1024.
+          05 FILLER                        PIC X(16).
+       01 WS-FULL-SPACES.
+          05 WS-ALL-SPACES                 PIC X(80) VALUE ALL SPACES.
+       01 WS-HEADINGS.
+          05 WS-HEAD-COL1                  PIC X(12)
+                                           VALUE 'APPLICANT ID'.
+          05 FILLER                        PIC X(03).
+          05 WS-HEAD-COL2                  PIC X(07) VALUE 'LOAN ID'.
+          05 FILLER                        PIC X(03).
+          05 WS-HEAD-COL3                  PIC X(13)
+                                           VALUE 'AMT PAID DAY'.
+          05 FILLER                        PIC X(02).
+          05 WS-HEAD-COL4                  PIC X(16)
+                                           VALUE 'CUR BAL AMT'.
+          05 FILLER                        PIC X(24).
+       01 WS-END-PAGE.
+          05 WS-DASH                       PIC X(20) VALUE ALL '-'.
+          05 FILLER                        PIC X(02).
+          05 WS-EOP                        PIC X(13)
+                                           VALUE 'END OF PAGE '.
+          05 WS-DASH2                      PIC X(45) VALUE ALL '-'.
+       01 WS-HEAD-PAGE.
+          05 FILLER                        PIC X(50).
+          05 WS-ONLY-PAGE1                 PIC X(05) VALUE 'PAGE:'.
+          05 WS-ONLY-PAGE2                 PIC 9(01) VALUE 1.
+          05 FILLER                        PIC X(24).
+       01 WS-HEAD-REPORT.
+          05 FILLER                        PIC X(50).
+          05 WS-ONLY-REPORT1               PIC X(10)
+                                           VALUE 'REPORT ID:'.
+          05 WS-ONLY-REPORT                PIC 9(04) VALUE 1024.
+          05 FILLER                        PIC X(16).
+       01 WS-LINE-COUNT                    PIC 9(02).
+       01 WS-PAGE-COUNT                    PIC 9(01).
+       01  WS-CURRENT-DATE-FIELDS.
+           05  WS-CURRENT-DATE.
+               10  WS-CURRENT-YEAR    PIC  9(4).
+               10  WS-CURRENT-MONTH   PIC  9(2).
+               10  WS-CURRENT-DAY     PIC  9(2).
+           05  WS-CURRENT-TIME.
+               10  WS-CURRENT-HOUR    PIC  9(2).
+               10  WS-CURRENT-MINUTE  PIC  9(2).
+               10  WS-CURRENT-SECOND  PIC  9(2).
+               10  WS-CURRENT-MS      PIC  9(2).
+           05  WS-DIFF-FROM-GMT       PIC S9(4).
+       01 FS-RP1FL                    PIC 9(02).
+       01 WS-SQL-CODE                      PIC X(02).
+       01 WS-I                             PIC 9(02) EXTERNAL.
+       01 WS-J                             PIC 9(02).
+       01 WS-AR-TABLE EXTERNAL.
+          02 WS-ARRAY-LOAN-DATA OCCURS 40 TIMES.
+           05 WS-AR-COL1                     PIC 9(10).
+           05 WS-AR-COL2                     PIC 9(02).
+           05 WS-AR-COL3                     PIC X(10).
+           05 WS-AR-COL4                     PIC X(10).
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           PERFORM OPEN-PARA.
+           PERFORM MOVE-HEADERS-PARA.
+           PERFORM PROCESS-PARA.
+           PERFORM CLOSE-PARA.
+           GOBACK.
+       OPEN-PARA.
+           OPEN OUTPUT RP1FL.
+           DISPLAY 'FILE STATUS AFTER OPEN ' FS-RP1FL.
+       MOVE-HEADERS-PARA.
+           MOVE FUNCTION CURRENT-DATE TO WS-CURRENT-DATE-FIELDS.
+           DISPLAY WS-CURRENT-DATE-FIELDS.
+           MOVE CORRESPONDING WS-CURRENT-DATE TO WS-HEAD2-DATE.
+           MOVE CORRESPONDING WS-CURRENT-TIME TO WS-HEAD3-TIME.
+           DISPLAY WS-HEAD2-DATE.
+           DISPLAY WS-HEAD3-TIME.
+           MOVE WS-HEADER1 TO RP1FL-REC.
+           WRITE RP1FL-REC.
+           MOVE WS-HEADER2 TO RP1FL-REC.
+           WRITE RP1FL-REC.
+           MOVE WS-HEADER3 TO RP1FL-REC.
+           WRITE RP1FL-REC.
+           MOVE WS-FULL-SPACES TO RP1FL-REC.
+           WRITE RP1FL-REC.
+           MOVE WS-FULL-SPACES TO RP1FL-REC.
+           WRITE RP1FL-REC.
+           MOVE WS-HEADINGS TO RP1FL-REC.
+           WRITE RP1FL-REC.
+           MOVE WS-FULL-SPACES TO RP1FL-REC.
+           WRITE RP1FL-REC.
+       PROCESS-PARA.
+           PERFORM UNTIL WS-J > ( WS-I - 2 )
+              ADD 1 TO WS-J
+              DISPLAY WS-ARRAY-LOAN-DATA(WS-J)
+              PERFORM MOVE-TO-REPORT-PARA
+           END-PERFORM.
+       MOVE-TO-REPORT-PARA.
+           DISPLAY 'INSIDE MOVE REPORT PARA'.
+           EVALUATE TRUE
+              WHEN WS-LINE-COUNT = 8
+                MOVE 00 TO WS-LINE-COUNT
+                DISPLAY "THIS IS BEFORE 1" WS-HEAD-PAGE
+                ADD 1 TO WS-ONLY-PAGE2
+                DISPLAY WS-ONLY-PAGE2
+                DISPLAY "THIS IS AFTER 1" WS-HEAD-PAGE
+                MOVE WS-FULL-SPACES TO RP1FL-REC
+                WRITE RP1FL-REC
+                MOVE WS-END-PAGE TO RP1FL-REC
+                WRITE RP1FL-REC
+                MOVE WS-HEAD-PAGE TO RP1FL-REC
+                WRITE RP1FL-REC
+                MOVE WS-HEAD-REPORT TO RP1FL-REC
+                WRITE RP1FL-REC
+                MOVE WS-HEADINGS TO RP1FL-REC
+                WRITE RP1FL-REC
+                MOVE WS-FULL-SPACES TO RP1FL-REC
+                WRITE RP1FL-REC
+              WHEN OTHER
+                MOVE WS-AR-COL1(WS-J) TO RP-APP-ID
+                MOVE WS-AR-COL2(WS-J) TO RP-LOAN-ID
+                MOVE WS-AR-COL3(WS-J) TO RP-LOAN-TENURE
+                MOVE WS-AR-COL4(WS-J) TO RP-LOAN-TYPE
+                WRITE RP1FL-REC
+                ADD 1 TO WS-LINE-COUNT
+           END-EVALUATE.
+           EVALUATE TRUE
+              WHEN WS-J = ( WS-I - 1 )
+                 MOVE WS-FULL-SPACES TO RP1FL-REC
+                 WRITE RP1FL-REC
+                 MOVE WS-END-PAGE TO RP1FL-REC
+                 WRITE RP1FL-REC
+              WHEN OTHER
+                 CONTINUE
+           END-EVALUATE.
+       CLOSE-PARA.
+           DISPLAY WS-I ' WS-I ' .
+           DISPLAY WS-J ' WS-J '.
+           CLOSE RP1FL.
+
