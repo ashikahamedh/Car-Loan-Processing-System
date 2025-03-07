@@ -1,0 +1,198 @@
+       ID DIVISION.
+       PROGRAM-ID. COB201.
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT INFL ASSIGN TO INDD1
+           ORGANIZATION IS SEQUENTIAL
+           ACCESS IS SEQUENTIAL
+           FILE STATUS FS-INFL.
+      *------------CHANGES------------
+           SELECT KSFL ASSIGN TO KSDD
+           ORGANIZATION IS INDEXED
+           ACCESS IS RANDOM
+           RECORD KEY IS KS-APPID
+           FILE STATUS IS FS-KSFL.
+      *------------------------------
+       DATA DIVISION.
+       FILE SECTION.
+       FD INFL.
+       01 INFL-REC.
+          05 IN-COLL                        PIC X(12).
+          05 FILLER                         PIC X(03).
+          05 IN-APP-ID                      PIC 9(10).
+          05 FILLER                         PIC X(01).
+          05 IN-LOAN-ID                     PIC 9(02).
+          05 FILLER                         PIC X(01).
+          05 IN-PAID-AMT                    PIC 9(10).
+          05 FILLER                         PIC X(01).
+          05 IN-PAID-DATE                   PIC X(10).
+          05 FILLER                         PIC X(01).
+          05 IN-PAY-MODE                    PIC X(06).
+          05 FILLER                         PIC X(05).
+          05 IN-CHEQ-DET                    PIC X(38).
+          05 FILLER                         PIC X(60).
+      *------------------CHANGES----------------------
+       FD KSFL.
+       01 KSFL-REC.
+          05 KS-APPID                       PIC 9(10).
+          05 FILLER                         PIC X(01).
+          05 KS-LOANID                      PIC 9(02).
+          05 FILLER                         PIC X(01).
+          05 KS-LTYPE                       PIC X(10).
+          05 FILLER                         PIC X(01).
+          05 KS-LTENURE                     PIC X(02).
+          05 FILLER                         PIC X(01).
+          05 KS-LTENTYPE                    PIC X(05).
+          05 FILLER                         PIC X(01).
+          05 KS-AMTPAID                     PIC 9(10).
+          05 FILLER                         PIC X(01).
+          05 KS-APDATE                      PIC X(10).
+          05 FILLER                         PIC X(01).
+          05 KS-PRODATE                     PIC X(10).
+          05 FILLER                         PIC X(94).
+      *-------------END CHANGES-----------------------
+       WORKING-STORAGE SECTION.
+      *------------CHANGESS------------------
+       01 WS-CURRENT-DATE-FIELDS.
+           05  WS-CURRENT-DATE.
+               10  WS-CURRENT-YEAR    PIC  9(4).
+               10  WS-CURRENT-MONTH   PIC  9(2).
+               10  WS-CURRENT-DAY     PIC  9(2).
+       01 WS-HEAD2-DATE.
+            05 WS-CURRENT-YEAR            PIC 9(04).
+            05 WS-HEAD2-SLASH             PIC X(01) VALUE '-'.
+            05 WS-CURRENT-MONTH           PIC 9(02).
+            05 WS-HEAD2-SLASH             PIC X(01) VALUE '-'.
+            05 WS-CURRENT-DAY             PIC 9(02).
+      *---------------END CHANGES---------------------
+       01 WS-SQLCODE                        PIC S9(3) LEADING SEPARATE.
+       01 FS-INFL                           PIC 9(02).
+          88 C01-SUC                        VALUE 00.
+          88 C01-EOF                        VALUE 10.
+       01 FS-KSFL                           PIC 9(02).
+       01 WS-PAID-AMT                       PIC 9(10).
+       01 WS-TAX                            PIC 9(10).
+       01 WS-TAX-AMT                        PIC 9(10).
+       01 WS-BALANCE                        PIC 9(10).
+       01 WS-NBALANCE                       PIC 9(10).
+       01 WS-CURAMT                         PIC 9(10).
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+           EXEC SQL
+               INCLUDE APPLC
+           END-EXEC.
+           EXEC SQL
+               INCLUDE LOAN
+           END-EXEC.
+           EXEC SQL
+               INCLUDE PAYMENT
+           END-EXEC.
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           DISPLAY 'I AM IN '.
+           PERFORM OPEN-PARA.
+           PERFORM INITIALIZE-PARA.
+           PERFORM READ-PARA UNTIL C01-EOF.
+           PERFORM CLOSE-PARA.
+           STOP RUN.
+       OPEN-PARA.
+           OPEN INPUT INFL.
+           DISPLAY FS-INFL.
+           DISPLAY 'HELLO'.
+           DISPLAY FS-KSFL.
+           OPEN I-O KSFL.
+           DISPLAY FS-KSFL.
+       INITIALIZE-PARA.
+           DISPLAY 'INIT'.
+           INITIALIZE WS-BALANCE WS-NBALANCE.
+       READ-PARA.
+           READ INFL AT END
+           DISPLAY 'EOF REACHED'
+           NOT AT END
+           PERFORM SQL-PARA.
+       SQL-PARA.
+           MOVE IN-LOAN-ID TO VH-LOANID
+           EXEC SQL
+              SELECT BALAMT INTO :VH-BALAMT FROM LOAN
+              WHERE LOANID = :VH-LOANID
+           END-EXEC.
+           DISPLAY VH-BALAMT.
+           EVALUATE TRUE
+               WHEN SQLCODE = 00
+               PERFORM CHECK-PARA
+               WHEN OTHER
+               DISPLAY "NOT FOUND"
+           END-EVALUATE.
+       CHECK-PARA.
+           EVALUATE TRUE
+             WHEN IN-PAY-MODE = 'CHEQUE'
+               DISPLAY 'CHEQUE'
+               PERFORM CALCULATION-PARA
+               PERFORM MOVE-DB2-PARA
+             WHEN OTHER
+               DISPLAY 'CASH'
+               PERFORM CALCULATE-CASH-PARA
+               PERFORM MOVE-DB2-PARA
+           END-EVALUATE.
+       CALCULATE-CASH-PARA.
+           MOVE IN-PAID-AMT TO WS-PAID-AMT.
+           MOVE VH-BALAMT TO WS-BALANCE.
+           MOVE 00 TO WS-CURAMT.
+           COMPUTE WS-CURAMT = WS-BALANCE - WS-PAID-AMT.
+           DISPLAY WS-CURAMT " CURRENT AMT".
+           DISPLAY 'AMT PAID' WS-PAID-AMT.
+           DISPLAY 'PREV BAL' WS-BALANCE.
+       CALCULATION-PARA.
+           MOVE IN-PAID-AMT TO WS-PAID-AMT.
+           MOVE VH-BALAMT TO WS-BALANCE.
+           MOVE 00 TO WS-CURAMT.
+           COMPUTE WS-CURAMT = WS-BALANCE - WS-PAID-AMT.
+           COMPUTE WS-CURAMT = WS-CURAMT + ( WS-PAID-AMT * 0.02)
+           DISPLAY WS-CURAMT " CURRENT AMT".
+           DISPLAY 'AMT PAID' WS-PAID-AMT.
+           DISPLAY 'PREV BAL' WS-BALANCE.
+       MOVE-DB2-PARA.
+           DISPLAY "IN MOVE DB2 PARA".
+           MOVE IN-APP-ID TO SV-APPID.
+           MOVE IN-LOAN-ID TO SV-LOANID.
+           MOVE IN-PAID-AMT TO SV-AMTPAID.
+           MOVE IN-PAID-DATE TO SV-APDATE.
+           MOVE WS-BALANCE TO SV-PREBALAMT.
+           MOVE WS-CURAMT TO SV-CURBALAMT.
+           MOVE IN-COLL TO SV-COLLECTION.
+           MOVE IN-PAY-MODE TO SV-PAYMODE.
+           MOVE IN-CHEQ-DET TO SV-CHQDET.
+           EXEC SQL
+               INSERT INTO PAYMENT VALUES(:SV-APPID, :SV-LOANID,
+               :SV-AMTPAID, :SV-APDATE, :SV-PREBALAMT, :SV-CURBALAMT,
+               :SV-COLLECTION, :SV-PAYMODE, :SV-CHQDET)
+           END-EXEC.
+      *---------------CHANGES-----------------
+           PERFORM VSAM-PARA.
+       VSAM-PARA.
+           DISPLAY 'IN VSAM'.
+           MOVE FUNCTION CURRENT-DATE TO WS-CURRENT-DATE-FIELDS.
+           DISPLAY WS-CURRENT-DATE-FIELDS.
+           MOVE CORRESPONDING WS-CURRENT-DATE TO WS-HEAD2-DATE.
+           DISPLAY WS-HEAD2-DATE.
+           MOVE SV-APPID TO KS-APPID
+           READ KSFL INVALID KEY
+           DISPLAY 'NOT VALID'
+           NOT INVALID KEY
+           DISPLAY 'VALID'
+           MOVE SV-AMTPAID TO KS-AMTPAID
+           MOVE SV-APDATE TO KS-APDATE
+           MOVE WS-HEAD2-DATE TO KS-PRODATE
+           REWRITE KSFL-REC
+           DISPLAY FS-KSFL
+           END-READ.
+      *------------END CHANGE-------------------
+       CLOSE-PARA.
+           CLOSE INFL.
+      *-------------CHANGE-----------------------
+           CLOSE KSFL.
+           DISPLAY FS-KSFL.
+      *---------------END----------------------
+

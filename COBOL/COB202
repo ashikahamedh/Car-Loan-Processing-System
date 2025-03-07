@@ -1,0 +1,187 @@
+       ID DIVISION.
+       PROGRAM-ID. COB202.
+       DATA DIVISION.
+       WORKING-STORAGE SECTION.
+       01 WS-SQLCODE                       PIC S9(3) LEADING SEPARATE.
+       01 WS-EOR                            PIC 9(04).
+       01 WS-I                              PIC 9(02) EXTERNAL.
+       01 WS-AR-TABLE EXTERNAL.
+          02 WS-ARRAY-LOAN-DATA OCCURS 40 TIMES.
+           05 WS-AR-COL1                     PIC 9(10).
+           05 WS-AR-COL2                     PIC 9(02).
+           05 WS-AR-COL3                     PIC X(10).
+           05 WS-AR-COL4                     PIC X(10).
+       01 WS-DATE.
+          05 WS-DAY                          PIC X(02).
+          05 WS-SLASH                        PIC X(01) VALUE '/'.
+          05 WS-MONTH                        PIC X(02).
+          05 WS-SLASH                        PIC X(01) VALUE '/'.
+          05 WS-YEAR                         PIC X(04).
+       01 WS-TEMP-MONTH                      PIC 9(02).
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+           EXEC SQL
+               INCLUDE APPLC
+           END-EXEC.
+           EXEC SQL
+               INCLUDE LOAN
+           END-EXEC.
+           EXEC SQL
+               INCLUDE PAYMENT
+           END-EXEC.
+           EXEC SQL
+                 DECLARE LOANDATA CURSOR FOR
+                 SELECT APPID, LOANID, LINDICATOR, RPAYDAY, MONRAMT,
+                 NEXTRPAYDD, BALAMT
+                 FROM TECN033.LOAN
+           END-EXEC.
+       PROCEDURE DIVISION.
+       MAIN-PARA.
+           PERFORM OPEN-PARA.
+           PERFORM FETCH-PARA UNTIL WS-EOR = 100
+           PERFORM CLOSE-PARA.
+           PERFORM REPORT-PROCESS-PARA.
+           STOP RUN.
+       OPEN-PARA.
+           DISPLAY 'IN OPEN-PARA'.
+           EXEC SQL
+           OPEN LOANDATA
+           END-EXEC.
+       FETCH-PARA.
+           DISPLAY 'IN FETCHPARA'
+           DISPLAY SQLCODE ' SQL CODE '.
+           EXEC SQL
+              FETCH LOANDATA INTO
+              :VH-APPID, :VH-LOANID, :VH-LINDICATOR, :VH-RPAYDAY,
+              :VH-MONRAMT,
+              :VH-NEXTRPAYDD, :VH-BALAMT
+           END-EXEC.
+           MOVE SQLCODE TO WS-SQLCODE
+           EVALUATE TRUE
+             WHEN WS-SQLCODE = 0
+                DISPLAY 'FETCH SUCCESS'
+             WHEN OTHER
+                DISPLAY 'FETCH NOT SUCESS' WS-SQLCODE
+           END-EVALUATE.
+           EVALUATE TRUE
+              WHEN WS-SQLCODE = 100
+                MOVE 100 TO WS-EOR
+              WHEN OTHER
+                CONTINUE
+           END-EVALUATE.
+           PERFORM VALIDATE-PARA.
+      *    PERFORM DATE-PARA.
+       VALIDATE-PARA.
+           DISPLAY 'INSIDE VALIDATE PARA'.
+           DISPLAY VH-LOANID ' LOAN ID '.
+           DISPLAY VH-LINDICATOR ' LOAN INDICATE '.
+           DISPLAY VH-NEXTRPAYDD ' REPAY DD '.
+           DISPLAY VH-BALAMT ' BALANCE AMT '.
+           MOVE VH-LOANID TO SV-LOANID.
+            EXEC SQL
+              SELECT CURBALAMT INTO :SV-CURBALAMT
+              FROM PAYMENT
+              WHERE LOANID = :SV-LOANID
+            END-EXEC.
+           EVALUATE TRUE
+             WHEN SV-CURBALAMT < 1000
+               DISPLAY 'LESS 1000'
+               PERFORM UPDATC-PARA
+             WHEN OTHER
+               DISPLAY 'GT 1000'
+               PERFORM UPDATO-PARA.
+       UPDATC-PARA.
+            DISPLAY 'IN UPDATE CLOSE'.
+            EXEC SQL
+            UPDATE LOAN SET LINDICATOR = 'CLOSE'
+            WHERE LOANID = :VH-LOANID
+            END-EXEC.
+            PERFORM DATE-CALCULATE-PARA.
+       UPDATO-PARA.
+            DISPLAY 'IN UPDATE OPEN'.
+            EXEC SQL
+            UPDATE LOAN SET LINDICATOR = 'OPEN'
+            WHERE LOANID = :VH-LOANID
+            END-EXEC.
+            MOVE SQLCODE TO WS-SQLCODE
+            EVALUATE TRUE
+              WHEN SQLCODE = 0
+                DISPLAY 'UPDATO SUCCESS'
+              WHEN OTHER
+                DISPLAY 'UPDATO FAIL' WS-SQLCODE
+            END-EVALUATE.
+            PERFORM DATE-CALCULATE-PARA.
+       DATE-CALCULATE-PARA.
+            MOVE VH-LOANID TO SV-LOANID.
+            EXEC SQL
+               SELECT APDATE INTO :SV-APDATE
+               FROM PAYMENT
+               WHERE LOANID = :SV-LOANID
+            END-EXEC.
+            MOVE SV-APDATE(4:2) TO WS-TEMP-MONTH.
+            MOVE SV-APDATE TO WS-DATE.
+            DISPLAY WS-TEMP-MONTH ' BEFORE ADDED 1 '.
+            ADD 1 TO WS-TEMP-MONTH.
+            MOVE WS-TEMP-MONTH TO WS-MONTH OF WS-DATE.
+            MOVE VH-RPAYDAY TO WS-DAY.
+            DISPLAY WS-TEMP-MONTH ' AFTER ADDED 1 '.
+            DISPLAY WS-MONTH ' FINAL MONTH '.
+            DISPLAY WS-DATE.
+            MOVE WS-DATE TO VH-NEXTRPAYDD.
+            EXEC SQL
+            UPDATE LOAN SET NEXTRPAYDD = :VH-NEXTRPAYDD
+            WHERE LOANID = :VH-LOANID
+            END-EXEC.
+            MOVE SQLCODE TO WS-SQLCODE
+            EVALUATE TRUE
+              WHEN SQLCODE = 0
+                DISPLAY 'UPDATO SUCCESS'
+              WHEN OTHER
+                DISPLAY 'UPDATO FAIL' WS-SQLCODE
+            END-EVALUATE.
+            PERFORM BALANCE-UPDATE-PARA.
+       BALANCE-UPDATE-PARA.
+            DISPLAY 'UPDATE BALANCE PARA'.
+            DISPLAY VH-BALAMT ' BEFORE UPDATE '.
+            MOVE VH-LOANID TO SV-LOANID.
+            EXEC SQL
+              SELECT CURBALAMT INTO :SV-CURBALAMT
+              FROM PAYMENT
+              WHERE LOANID = :SV-LOANID
+            END-EXEC.
+            DISPLAY SV-CURBALAMT ' BALANCE FROM PAYMENT DB '.
+            MOVE SV-CURBALAMT TO VH-BALAMT.
+            DISPLAY VH-BALAMT ' AFTER UPDATE '.
+      *---------------UN COMMENT WHEN NEEDED----------------
+      *     EXEC SQL
+      *        UPDATE LOAN SET BALAMT = :VH-BALAMT
+      *        WHERE LOANID = :VH-LOANID
+      *     END-EXEC.
+            DISPLAY 'AFTER UPDATING BALANCE SQL CODE ' WS-SQLCODE.
+            PERFORM MOVE-REPORT-PARA.
+       MOVE-REPORT-PARA.
+            DISPLAY 'IN REPORT PARA'.
+            MOVE VH-LOANID TO SV-LOANID.
+            EXEC SQL
+               SELECT CURBALAMT INTO :SV-CURBALAMT
+               FROM PAYMENT
+               WHERE LOANID = :SV-LOANID
+            END-EXEC.
+            DISPLAY VH-APPID ' APP ID '.
+            DISPLAY VH-MONRAMT ' MONTHY REPAY '.
+            DISPLAY VH-LOANID ' LOAN ID '.
+            DISPLAY SV-CURBALAMT ' CUR BAL AMT '.
+            ADD 1 TO WS-I.
+            MOVE VH-APPID TO WS-AR-COL1(WS-I).
+            MOVE VH-LOANID TO WS-AR-COL2(WS-I).
+            MOVE VH-MONRAMT TO WS-AR-COL3(WS-I).
+            MOVE SV-CURBALAMT TO WS-AR-COL4(WS-I).
+            DISPLAY WS-ARRAY-LOAN-DATA(WS-I).
+       CLOSE-PARA.
+           DISPLAY 'IN CLOSE'.
+           EXEC SQL CLOSE LOANDATA END-EXEC.
+       REPORT-PROCESS-PARA.
+           DISPLAY 'INSIDE REPORT PROCESS PARA'.
+           CALL 'REPSUB2'.
+
